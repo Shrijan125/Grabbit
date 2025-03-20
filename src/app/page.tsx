@@ -1,103 +1,132 @@
-import Image from "next/image";
+'use client';
+import React, { useEffect, useState } from 'react';
+import { Info } from 'lucide-react';
+import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
+import { PostsTable, Post } from '@/components/dashboard/PostsTable';
+import { SearchFilters } from '@/components/dashboard/SearchFilters';
+import { Pagination } from '@/components/dashboard/Pagination';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { getPosts } from '@/server-actions/fetch-posts';
 
-export default function Home() {
+const Dashboard = () => {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterBy, setFilterBy] = useState('all');
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const data = await getPosts();
+        setPosts(data);
+        setFilteredPosts(data);
+      } catch (err) {
+        console.error('Error fetching posts:', err);
+        setError('Failed to load posts. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredPosts(posts);
+      setCurrentPage(1);
+      return;
+    }
+
+    const lowercasedSearch = searchTerm.toLowerCase();
+    const filtered = posts.filter((post) => {
+      if (filterBy === 'id') {
+        return post.id.toString().includes(lowercasedSearch);
+      } else if (filterBy === 'title') {
+        return post.title.toLowerCase().includes(lowercasedSearch);
+      } else {
+        return (
+          post.title.toLowerCase().includes(lowercasedSearch) ||
+          post.body.toLowerCase().includes(lowercasedSearch) ||
+          post.id.toString().includes(lowercasedSearch)
+        );
+      }
+    });
+
+    setFilteredPosts(filtered);
+    setCurrentPage(1);
+  }, [searchTerm, filterBy, posts]);
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setFilterBy('all');
+  };
+
+  const totalPages = Math.ceil(filteredPosts.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedPosts = filteredPosts.slice(startIndex, endIndex);
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div>
+          <div className="bg-primary/10 text-primary mb-2 inline-block rounded-full px-3 py-1 text-xs font-medium">
+            Dashboard
+          </div>
+          <h1 className="mb-1 text-3xl font-bold tracking-tight">Posts</h1>
+          <p className="text-muted-foreground">
+            View and manage posts from the API
+          </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+
+        {error ? (
+          <Alert variant="destructive">
+            <Info className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : (
+          <>
+            <SearchFilters
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              filterBy={filterBy}
+              onFilterChange={setFilterBy}
+              onClear={handleClearSearch}
+            />
+
+            <div className="bg-card rounded-lg border">
+              <PostsTable posts={paginatedPosts} isLoading={isLoading} />
+
+              <div className="border-t px-4">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  pageSize={pageSize}
+                  onPageSizeChange={handlePageSizeChange}
+                />
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </DashboardLayout>
   );
-}
+};
+
+export default Dashboard;
